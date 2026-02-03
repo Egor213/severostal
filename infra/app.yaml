@@ -1,0 +1,15 @@
+name: todolist
+
+services:
+  
+
+
+
+volumes:
+  todolist_dbdata:
+
+networks:
+  todolist_backend:
+    driver: bridge
+
+

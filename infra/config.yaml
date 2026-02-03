@@ -1,0 +1,16 @@
+app:
+  name: TodoList 
+  version: 1.0
+
+logger:
+  level: debug
+
+db:
+  logging: false
+  pool_size: 5
+  max_overflow: 10
+  pool_recycle: 3600
+  pool_timeout: 30
+
+jwt:
+  algorithm: HS256
