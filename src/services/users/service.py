@@ -5,6 +5,7 @@ from asyncpg.exceptions import UniqueViolationError
 from src.services.users.exceptions import UserAlreadyExistsEx, CannotCreateUserEx
 from logging import Logger
 
+
 class UsersService:
 
     def __init__(self, users_repo: IUsersRepo, uow: UnitOfWork, logger: Logger | None = None):

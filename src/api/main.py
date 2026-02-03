@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from src.api.http import configurate_routers
+from src.metrics import configurate_metrics
 from src.app import init_container, init_logger
 from src.database import Database
 
@@ -25,4 +26,5 @@ def create_app() -> FastAPI:
     )
     init_logger()
     configurate_routers(app)
+    configurate_metrics(app)
     return app
