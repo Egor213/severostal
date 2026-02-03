@@ -1,5 +1,5 @@
-from src.repositories.tasks import ITasksRepo
 from src.database import UnitOfWork
+from src.repositories.tasks import ITasksRepo
 
 
 class TasksService:

@@ -1,6 +1,5 @@
 from src.database import Database
-
-from .contract import ITasksRepo
+from src.repositories.tasks.contract import ITasksRepo
 
 
 class TasksRepoPdb(ITasksRepo):

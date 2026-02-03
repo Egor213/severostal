@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import AsyncAdaptedQueuePool
 
@@ -32,17 +34,17 @@ class Database:
             autoflush=False,
         )
 
+    @asynccontextmanager
     async def get_session(self):
         async with self.session_factory() as session:
             try:
                 yield session
-                session.commit()
             except:
                 await session.rollback()
                 raise
             finally:
                 await session.close()
-    
+
     def create_session(self) -> AsyncSession:
         return self.session_factory()
 
