@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from src.services.exceptions import ServiceException
 
 
@@ -12,3 +11,21 @@ class CannotCreateUserEx(ServiceException):
     @property
     def message(self):
         return "cannot create user"
+
+
+class CannotLoginUserEx(ServiceException):
+    @property
+    def message(self):
+        return "cannot login user"
+
+
+class InvalidLoginParamsEx(ServiceException):
+    @property
+    def message(self):
+        return "invalid login params"
+
+
+class UserNotFoundEx(ServiceException):
+    @property
+    def message(self):
+        return "user not found"

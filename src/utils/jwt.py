@@ -25,7 +25,11 @@ def decode_token(token: str):
     payload = jwt.decode(token, auth_data["secret_key"], algorithms=auth_data["algorithm"])
 
     exp = payload.get("exp")
-    if exp and datetime.now(timezone.utc) > datetime.fromtimestamp(exp):
-        raise TokenExpire
+    if exp:
+        exp_datetime = datetime.fromtimestamp(exp, tz=timezone.utc)
+        current_time = datetime.now(timezone.utc)
+
+        if current_time > exp_datetime:
+            raise TokenExpire()
 
     return payload

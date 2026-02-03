@@ -25,7 +25,6 @@ config = context.config
 
 def get_database_url():
     postgres_conn = os.getenv("POSTGRES_CONN", "postgresql://admin:admin@localhost:5432/app")
-
     if postgres_conn.startswith("postgresql://"):
         return postgres_conn.replace("postgresql://", "postgresql+asyncpg://")
     elif postgres_conn.startswith("postgres://"):

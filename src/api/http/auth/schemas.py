@@ -2,10 +2,18 @@ from pydantic import BaseModel
 
 
 class CreateUserRequest(BaseModel):
-    username: str
-    password: str
+    username: str = "test"
+    password: str = "test"
 
 
 class CreateUserResponse(BaseModel):
-    id: int
+    token: str
+
+
+class LoginUserRequest(BaseModel):
+    username: str = "test"
+    password: str = "test"
+
+
+class LoginUserResponse(BaseModel):
     token: str

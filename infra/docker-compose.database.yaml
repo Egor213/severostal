@@ -34,3 +34,4 @@ volumes:
 networks:
   todolist_backend:
     driver: bridge
+    name: todolist_network

@@ -1,0 +1,21 @@
+name: todolist
+
+services:
+  app:
+    container_name: todolist-backend
+    build:
+      context: ..
+      dockerfile: Dockerfile.app
+    env_file: .env
+    ports:
+      - ${BACKEND_PORT}:8000
+    networks:
+      - todolist_backend
+
+
+networks:
+  todolist_backend:
+    external: true
+    name: todolist_network
+
+

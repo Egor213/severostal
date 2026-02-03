@@ -22,6 +22,9 @@ def init_container() -> punq.Container:
     container.register(UnitOfWork, instance=UnitOfWork(db), scope=punq.Scope.singleton)
     uow = container.resolve(UnitOfWork)
 
+    import logging
+
+    logger = logging.getLogger("Test")
     # Repos
     container.register(ITasksRepo, instance=TasksRepoPdb(db), scope=punq.Scope.singleton)
     container.register(IUsersRepo, instance=UsersRepoPdb(db), scope=punq.Scope.singleton)
@@ -31,10 +34,12 @@ def init_container() -> punq.Container:
 
     # Services
     container.register(
-        TasksService, instance=TasksService(tasks_repo, uow), scope=punq.Scope.singleton
+        TasksService,
+        instance=TasksService(tasks_repo, users_repo, uow, logger),
+        scope=punq.Scope.singleton,
     )
     container.register(
-        UsersService, instance=UsersService(users_repo, uow), scope=punq.Scope.singleton
+        UsersService, instance=UsersService(users_repo, uow, logger), scope=punq.Scope.singleton
     )
 
     return container

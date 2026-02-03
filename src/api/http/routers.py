@@ -8,8 +8,6 @@ from src.api.http.tasks import router as tasks_router
 
 def configurate_routers(app: FastAPI):
 
-    
-
     api_router = APIRouter(prefix="/api/v1")
     api_router.include_router(tasks_router)
 

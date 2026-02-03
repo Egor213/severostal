@@ -1,0 +1,10 @@
+#!/bin/sh
+echo "Running migrations..."
+alembic upgrade head
+
+echo "Starting application..."
+
+exec uvicorn src.api.main:create_app \
+    --host 0.0.0.0 \
+    --port 8000 \
+    --factory

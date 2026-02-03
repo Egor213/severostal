@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import Database
@@ -28,7 +29,18 @@ class UsersRepoPdb(IUsersRepo):
             user = UserModel(username=username, hashed_password=hashed_password)
             session.add(user)
             await session.commit()
-            return user.id, user.username
+            return user.id
 
-    async def get_user_by_id(self, id: int, ready_session: AsyncSession | None = None) -> User:
-        pass
+    async def get_user_by_id(
+        self, id: int, ready_session: AsyncSession | None = None
+    ) -> User | None:
+        async with self.get_session(ready_session) as session:
+            return await session.get(UserModel, id)
+
+    async def get_user_by_username(
+        self, username: str, ready_session: AsyncSession | None = None
+    ) -> User | None:
+        async with self.get_session(ready_session) as session:
+            stmt = select(UserModel).where(UserModel.username == username)
+            result = await session.execute(stmt)
+            return result.scalar_one_or_none()
