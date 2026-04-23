@@ -1,0 +1,43 @@
+name: Auto-generate tests
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  workflow_dispatch:
+    inputs:
+      target_dir:
+        description: 'Папка для генерации'
+        required: false
+      target_file:
+        description: 'Файл'
+        required: false
+
+jobs:
+  generate-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate tests
+        uses: your-org/generator-tests-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          ai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          project_root: '.'
+          tests_dir: 'tests'
+          model: 'gpt-4o-mini'
+          target_line_coverage: '75'
+          target_dir: ${{ inputs.target_dir }}
+          target_file: ${{ inputs.target_file }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-report
+          path: test_analysis_report/
