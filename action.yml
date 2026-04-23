@@ -1,0 +1,130 @@
+name: Generator Tests
+description: "Генерирует pytest-тесты через LLM с анализом покрытия и мутациями"
+author: YourName
+
+inputs:
+  github_token:
+    description: "GitHub token для создания PR"
+    required: true
+  ai_api_key:
+    description: "API-ключ для LLM (OpenAI/OpenRouter/LMStudio)"
+    required: true
+
+  project_root:
+    description: "Путь к исходному коду проекта (относительно репо)"
+    required: false
+    default: "."
+
+  tests_dir:
+    description: "Директория для сгенерированных тестов"
+    required: false
+    default: "tests"
+
+  config_path:
+    description: "Путь к config.yaml"
+    required: false
+    default: "config/config.yaml"
+
+  model:
+    description: "Модель LLM (переопределяет конфиг)"
+    required: false
+    default: ""
+
+  temperature:
+    description: "Temperature для генерации"
+    required: false
+    default: ""
+
+  max_generate_retries:
+    description: "Максимум попыток генерации"
+    required: false
+    default: "3"
+
+  max_fix_attempts:
+    description: "Максимум попыток починки тестов"
+    required: false
+    default: "4"
+
+  target_line_coverage:
+    description: "Целевой процент покрытия"
+    required: false
+    default: "60"
+
+  max_async_workers:
+    description: "Параллельные воркеры"
+    required: false
+    default: "5"
+
+  # --- фильтры целей (опционально) ---
+  target_dir:
+    description: "Генерить тесты только для файлов в папке"
+    required: false
+    default: ""
+  target_file:
+    description: "Конкретный файл"
+    required: false
+    default: ""
+  target_class:
+    description: "Конкретный класс"
+    required: false
+    default: ""
+  target_function:
+    description: "Конкретная функция"
+    required: false
+    default: ""
+
+  # --- PR-режим ---
+  pr_mode:
+    description: "Если true — создаёт PR с изменениями"
+    required: false
+    default: "true"
+  base_branch:
+    description: "Базовая ветка для PR"
+    required: false
+    default: "main"
+
+  python_version:
+    description: "Версия Python"
+    required: false
+    default: "3.11"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python_version }}
+
+    - name: Install generator
+      shell: bash
+      run: |
+        pip install --upgrade pip
+        pip install -e "${{ github.action_path }}/../../.."
+        # либо: pip install git+https://github.com/your/Generator_Tests.git
+
+    - name: Run generator
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        AI_API_KEY: ${{ inputs.ai_api_key }}
+        ACTION_PATH: ${{ github.action_path }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        PR_REF: ${{ github.event.pull_request.head.ref }}
+      run: |
+        ${{ github.action_path }}/scripts/run.sh \
+          --project-root "${{ inputs.project_root }}" \
+          --tests-dir "${{ inputs.tests_dir }}" \
+          --config-path "${{ inputs.config_path }}" \
+          --model "${{ inputs.model }}" \
+          --temperature "${{ inputs.temperature }}" \
+          --max-generate-retries "${{ inputs.max_generate_retries }}" \
+          --max-fix-attempts "${{ inputs.max_fix_attempts }}" \
+          --target-line-coverage "${{ inputs.target_line_coverage }}" \
+          --max-async-workers "${{ inputs.max_async_workers }}" \
+          --target-dir "${{ inputs.target_dir }}" \
+          --target-file "${{ inputs.target_file }}" \
+          --target-class "${{ inputs.target_class }}" \
+          --target-function "${{ inputs.target_function }}" \
+          --pr-mode "${{ inputs.pr_mode }}" \
+          --base-branch "${{ inputs.base_branch }}"
