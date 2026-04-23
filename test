@@ -1,41 +1,122 @@
-Run Egor213/llm-test-generator-action@main
-Run actions/setup-python@v5
-Installed versions
-/opt/hostedtoolcache/Python/3.11.15/x64/bin/pip cache dir
-/home/runner/.cache/pip
-pip cache is not found
-Run echo "::group::Install generator"
-Install generator
-Run bash "/home/runner/work/_actions/Egor213/llm-test-generator-action/main/scripts/run.sh" \
-Environment
-⚠️  Config not found, generator will use defaults
-Generator run
-  Traceback (most recent call last):
-    File "/opt/hostedtoolcache/Python/3.11.15/x64/bin/generator-tests", line 6, in <module>
-      sys.exit(main_sync())
-               ^^^^^^^^^^^
-    File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/src/app/app.py", line 33, in main_sync
-      asyncio.run(main())
-    File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/asyncio/runners.py", line 190, in run
-      return runner.run(main)
-             ^^^^^^^^^^^^^^^^
-    File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/asyncio/runners.py", line 118, in run
-      return self._loop.run_until_complete(task)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/asyncio/base_events.py", line 654, in run_until_complete
-      return future.result()
-             ^^^^^^^^^^^^^^^
-    File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/src/app/app.py", line 13, in main
-      config = Config(config_file_path=args.config)
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/src/managers/config.py", line 87, in __init__
-      super().__init__(**data)
-    File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/pydantic_settings/main.py", line 215, in __init__
-      else __pydantic_self__.__class__._settings_init_sources(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/pydantic_settings/main.py", line 417, in _settings_init_sources
-      sources = cls.settings_customise_sources(
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  TypeError: Config.settings_customise_sources() missing 1 required positional argument: 'settings_cls'
-  Error: Generator failed
-  Error: Process completed with exit code 1.
+# FILE: src/managers/config.py
+import logging
+from pathlib import Path
+from typing import ClassVar, Optional
+
+from pydantic import BaseModel, Field, field_validator
+from pydantic_settings import (
+    BaseSettings,
+    DotEnvSettingsSource,
+    PydanticBaseSettingsSource,
+    YamlConfigSettingsSource,
+)
+
+from src.app.logger import LogLevel, LogOutput
+from src.entity.llm import LLMProvider
+
+
+class AIConfig(BaseModel):
+    llm_provider: LLMProvider = LLMProvider.OPENAI  # лучше явно, а не строкой
+    model: str
+    temperature: float = 0.1
+    max_tokens: int = 40000
+    base_url: str = "http://localhost:1234/v1/"
+    timeout: int = 900
+    max_generate_retries: int = 3
+    max_fix_attempts: int = 4
+    max_invoke_retries: int = 3
+    target_line_coverage: int = 60
+
+    @field_validator("temperature")
+    @classmethod
+    def validate_temperature(cls, v: float) -> float:
+        if not (0 < v <= 1):
+            raise ValueError("temperature must be in the range (0, 1]")
+        return v
+
+    @field_validator(
+        "max_tokens",
+        "timeout",
+        "max_generate_retries",
+        "max_fix_attempts",
+        "max_invoke_retries",
+    )
+    @classmethod
+    def validate_positive_int(cls, v: int, info) -> int:
+        if v < 0:
+            raise ValueError(f"{info.field_name} must be greater than or equal 0")
+        return v
+
+
+class LoggerConfig(BaseModel):
+    file_level: LogLevel = Field(LogLevel.INFO)
+    console_level: LogLevel = Field(LogLevel.INFO)
+    log_out: LogOutput = Field(LogOutput.CONSOLE)
+    log_file: str = Field("logs/app.log")
+
+    LEVEL_MAP: ClassVar[dict[str, int]] = {
+        "DEBUG": logging.DEBUG,
+        "INFO": logging.INFO,
+        "WARNING": logging.WARNING,
+        "ERROR": logging.ERROR,
+        "CRITICAL": logging.CRITICAL,
+    }
+
+    @property
+    def numeric_console_level(self) -> int:
+        return self.LEVEL_MAP[self.console_level]
+
+    @property
+    def numeric_file_level(self) -> int:
+        return self.LEVEL_MAP[self.file_level]
+
+
+class App(BaseModel):
+    max_async_workers: int = 5
+
+
+class Config(BaseSettings):
+    app: App
+    ai: AIConfig
+    logger: LoggerConfig
+    ai_api_key: str
+
+    # class-level "переменные" для путей — читаются в settings_customise_sources
+    _config_file_path: ClassVar[Path] = Path("config/config.yaml")
+    _env_file_path: ClassVar[Path] = Path("config/.env")
+
+    def __init__(
+        self,
+        config_file_path: Optional[Path] = None,
+        env_file_path: Optional[Path] = None,
+        **data,
+    ):
+        # Записываем в class-attribute, чтобы classmethod ниже мог их увидеть
+        cls = type(self)
+        if config_file_path is not None:
+            cls._config_file_path = Path(config_file_path)
+        if env_file_path is not None:
+            cls._env_file_path = Path(env_file_path)
+
+        super().__init__(**data)
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        return (
+            init_settings,
+            DotEnvSettingsSource(
+                settings_cls,
+                env_file=cls._env_file_path,
+                env_file_encoding="utf-8",
+            ),
+            YamlConfigSettingsSource(settings_cls, cls._config_file_path),
+            env_settings,
+            file_secret_settings,
+        )
