@@ -1,0 +1,82 @@
+#!/bin/bash
+set -e
+
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --project-root) PROJECT_ROOT="$2"; shift ;;
+        --tests-dir) TESTS_DIR="$2"; shift ;;
+        --base-branch) BASE_BRANCH="$2"; shift ;;
+        --model) MODEL="$2"; shift ;;
+        --target-coverage) TARGET_COV="$2"; shift ;;
+        *) echo "Unknown: $1"; exit 1 ;;
+    esac
+    shift
+done
+
+WORKDIR="${GITHUB_WORKSPACE:-$PWD}"
+cd "$WORKDIR"
+
+# git identity
+git config --global user.email "[Email7].github.com"
+git config --global user.name  "generator-tests[bot]"
+
+# --- проверяем, есть ли изменения ---
+if [ -z "$(git status --porcelain -- "$PROJECT_ROOT/$TESTS_DIR")" ]; then
+    echo "ℹ️  No new tests generated, skipping PR."
+    exit 0
+fi
+
+TIMESTAMP=$(date +%s)
+PR_NUMBER="${GITHUB_EVENT_NUMBER:-${GITHUB_RUN_NUMBER}}"
+BRANCH_NAME="generator-tests/${PR_NUMBER}-${TIMESTAMP}"
+
+PR_TARGET="${GITHUB_HEAD_REF:-$BASE_BRANCH}"
+
+# PR body
+PR_BODY=$(cat <<EOF
+## 🤖 Auto-generated tests
+
+Сгенерировано [generator-tests-action](https://github.com/your-org/generator-tests-action).
+
+### Параметры
+| | |
+|---|---|
+| Модель | \`${MODEL}\` |
+| Целевое покрытие | ${TARGET_COV}% |
+| Базовая ветка | \`${PR_TARGET}\` |
+
+### Что сделано
+- ✅ Сгенерированы unit-тесты для непокрытых функций
+- ✅ Каждый тест прошёл валидацию в sandbox
+- ✅ Выполнен анализ покрытия + мутационное тестирование
+
+📊 HTML-отчёт доступен в артефактах workflow.
+
+---
+_Workflow run: [${GITHUB_RUN_ID}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})_
+EOF
+)
+
+# --- создаём ветку и коммитим только тесты ---
+git checkout -b "$BRANCH_NAME"
+git add "$PROJECT_ROOT/$TESTS_DIR"
+
+# на всякий случай выбрасываем мусор
+git reset -- "*.log" "*.db" "*.xml" "**/test_analysis_report/**" "**/.coverage*" "**/sandbox_venv/**" 2>/dev/null || true
+
+if [ -z "$(git diff --cached --name-only)" ]; then
+    echo "ℹ️  Only noise changed, skip."
+    exit 0
+fi
+
+git commit -m "🤖 Generator Tests: add tests (target coverage ${TARGET_COV}%)"
+git push origin "$BRANCH_NAME"
+
+PR_URL=$(gh pr create \
+    --base "$PR_TARGET" \
+    --head "$BRANCH_NAME" \
+    --title "🤖 Generator Tests: auto-generated tests" \
+    --body "$PR_BODY")
+
+echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
+echo "✅ PR created: $PR_URL"
