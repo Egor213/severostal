@@ -1,0 +1,167 @@
+name: 'Generator Tests'
+description: 'Автоматическая генерация pytest-тестов через LLM с анализом покрытия и мутаций'
+author: 'Your Name'
+branding:
+  icon: 'check-circle'
+  color: 'purple'
+
+inputs:
+  # --- обязательные ---
+  github_token:
+    description: 'GitHub token (обычно ${{ secrets.GITHUB_TOKEN }})'
+    required: true
+  ai_api_key:
+    description: 'API-ключ для LLM (OpenAI / OpenRouter и т.д.)'
+    required: true
+
+  # --- версия генератора ---
+  generator_version:
+    description: 'Версия/тег генератора (тег в Generator_Tests, например v0.1.0 или main)'
+    required: false
+    default: 'main'
+  generator_repo:
+    description: 'URL репо с генератором'
+    required: false
+    default: 'https://github.com/your-org/Generator_Tests.git'
+
+  # --- где лежит код ---
+  project_root:
+    description: 'Путь к корню проекта (относительно репо)'
+    required: false
+    default: '.'
+  tests_dir:
+    description: 'Папка для сгенерированных тестов (относительно project_root)'
+    required: false
+    default: 'tests'
+  config_path:
+    description: 'Путь к config.yaml (относительно project_root). Если пусто — используется встроенный'
+    required: false
+    default: ''
+
+  # --- параметры LLM ---
+  model:
+    description: 'Модель LLM'
+    required: false
+    default: 'gpt-4o-mini'
+  temperature:
+    description: 'Temperature'
+    required: false
+    default: '0.2'
+  api_base_url:
+    description: 'Base URL для API (OpenRouter, прокси и т.д.)'
+    required: false
+    default: ''
+
+  # --- пайплайн ---
+  max_generate_retries:
+    description: 'Макс. попыток генерации'
+    required: false
+    default: '3'
+  max_fix_attempts:
+    description: 'Макс. попыток починки тестов'
+    required: false
+    default: '4'
+  target_line_coverage:
+    description: 'Целевой процент покрытия'
+    required: false
+    default: '70'
+  max_async_workers:
+    description: 'Параллельные воркеры'
+    required: false
+    default: '5'
+
+  # --- фильтры целей ---
+  target_dir:
+    description: 'Генерить только для этой папки'
+    required: false
+    default: ''
+  target_file:
+    description: 'Конкретный файл'
+    required: false
+    default: ''
+  target_class:
+    description: 'Конкретный класс'
+    required: false
+    default: ''
+  target_function:
+    description: 'Конкретная функция'
+    required: false
+    default: ''
+
+  # --- PR режим ---
+  pr_mode:
+    description: 'Создавать ли PR с изменениями'
+    required: false
+    default: 'true'
+  base_branch:
+    description: 'Базовая ветка'
+    required: false
+    default: 'main'
+
+  python_version:
+    description: 'Версия Python'
+    required: false
+    default: '3.11'
+
+outputs:
+  pr_url:
+    description: 'URL созданного PR (если pr_mode=true)'
+    value: ${{ steps.pr.outputs.pr_url }}
+  report_path:
+    description: 'Путь к HTML-отчёту'
+    value: ${{ steps.run.outputs.report_path }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python_version }}
+        cache: 'pip'
+
+    - name: Install generator-tests
+      shell: bash
+      run: |
+        echo "::group::Install generator"
+        pip install --upgrade pip
+        pip install "git+${{ inputs.generator_repo }}@${{ inputs.generator_version }}"
+        echo "::endgroup::"
+
+    - name: Run generator
+      id: run
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        AI_API_KEY: ${{ inputs.ai_api_key }}
+        AI_BASE_URL: ${{ inputs.api_base_url }}
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        bash "${{ github.action_path }}/scripts/run.sh" \
+          --project-root "${{ inputs.project_root }}" \
+          --tests-dir "${{ inputs.tests_dir }}" \
+          --config-path "${{ inputs.config_path }}" \
+          --model "${{ inputs.model }}" \
+          --temperature "${{ inputs.temperature }}" \
+          --max-generate-retries "${{ inputs.max_generate_retries }}" \
+          --max-fix-attempts "${{ inputs.max_fix_attempts }}" \
+          --target-line-coverage "${{ inputs.target_line_coverage }}" \
+          --max-async-workers "${{ inputs.max_async_workers }}" \
+          --target-dir "${{ inputs.target_dir }}" \
+          --target-file "${{ inputs.target_file }}" \
+          --target-class "${{ inputs.target_class }}" \
+          --target-function "${{ inputs.target_function }}"
+
+    - name: Create Pull Request
+      id: pr
+      if: inputs.pr_mode == 'true'
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+      run: |
+        bash "${{ github.action_path }}/scripts/create_pr.sh" \
+          --project-root "${{ inputs.project_root }}" \
+          --tests-dir "${{ inputs.tests_dir }}" \
+          --base-branch "${{ inputs.base_branch }}" \
+          --model "${{ inputs.model }}" \
+          --target-coverage "${{ inputs.target_line_coverage }}"
