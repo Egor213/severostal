@@ -1,43 +1,41 @@
-name: Auto-generate tests
-
-on:
-  pull_request:
-    types: [opened, synchronize]
-  workflow_dispatch:
-    inputs:
-      target_dir:
-        description: 'Папка для генерации'
-        required: false
-      target_file:
-        description: 'Файл'
-        required: false
-
-jobs:
-  generate-tests:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Generate tests
-        uses: your-org/generator-tests-action@v1
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          ai_api_key: ${{ secrets.OPENAI_API_KEY }}
-          project_root: '.'
-          tests_dir: 'tests'
-          model: 'gpt-4o-mini'
-          target_line_coverage: '75'
-          target_dir: ${{ inputs.target_dir }}
-          target_file: ${{ inputs.target_file }}
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-report
-          path: test_analysis_report/
+Run Egor213/llm-test-generator-action@main
+Run actions/setup-python@v5
+Installed versions
+/opt/hostedtoolcache/Python/3.11.15/x64/bin/pip cache dir
+/home/runner/.cache/pip
+pip cache is not found
+Run echo "::group::Install generator"
+Install generator
+Run bash "/home/runner/work/_actions/Egor213/llm-test-generator-action/main/scripts/run.sh" \
+Environment
+⚠️  Config not found, generator will use defaults
+Generator run
+  Traceback (most recent call last):
+    File "/opt/hostedtoolcache/Python/3.11.15/x64/bin/generator-tests", line 6, in <module>
+      sys.exit(main_sync())
+               ^^^^^^^^^^^
+    File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/src/app/app.py", line 33, in main_sync
+      asyncio.run(main())
+    File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/asyncio/runners.py", line 190, in run
+      return runner.run(main)
+             ^^^^^^^^^^^^^^^^
+    File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/asyncio/runners.py", line 118, in run
+      return self._loop.run_until_complete(task)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/asyncio/base_events.py", line 654, in run_until_complete
+      return future.result()
+             ^^^^^^^^^^^^^^^
+    File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/src/app/app.py", line 13, in main
+      config = Config(config_file_path=args.config)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/src/managers/config.py", line 87, in __init__
+      super().__init__(**data)
+    File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/pydantic_settings/main.py", line 215, in __init__
+      else __pydantic_self__.__class__._settings_init_sources(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/site-packages/pydantic_settings/main.py", line 417, in _settings_init_sources
+      sources = cls.settings_customise_sources(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  TypeError: Config.settings_customise_sources() missing 1 required positional argument: 'settings_cls'
+  Error: Generator failed
+  Error: Process completed with exit code 1.
