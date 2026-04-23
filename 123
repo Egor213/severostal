@@ -1,35 +1,84 @@
-[project]
-name = "generator-tests"
-version = "0.1.0"
-description = "LLM-powered pytest generator with coverage & mutation analysis"
-requires-python = ">=3.10"
-authors = [{name = "Your Name", email = "[Email5]"}]
-dependencies = [
-    "aiohttp>=3.9",
-    "openai>=1.0",
-    "pydantic>=2.0",
-    "pydantic-settings>=2.0",
-    "jinja2>=3.1",
-    "tiktoken>=0.5",
-    "coverage>=7.0",
-    "pytest>=7.4",
-    "pytest-asyncio>=0.21",
-    "pytest-cov>=4.1",
-    "black>=23.0",
-    "PyYAML>=6.0",
-    "python-dotenv>=1.0",
-]
+#!/bin/bash
+set -e
 
-[project.scripts]
-generator-tests = "src.app.app:main_sync"
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --project-root) PROJECT_ROOT="$2"; shift ;;
+        --tests-dir) TESTS_DIR="$2"; shift ;;
+        --config-path) CONFIG_PATH="$2"; shift ;;
+        --model) MODEL="$2"; shift ;;
+        --temperature) TEMPERATURE="$2"; shift ;;
+        --max-generate-retries) MAX_GEN_RETRIES="$2"; shift ;;
+        --max-fix-attempts) MAX_FIX_ATTEMPTS="$2"; shift ;;
+        --target-line-coverage) TARGET_COV="$2"; shift ;;
+        --max-async-workers) MAX_WORKERS="$2"; shift ;;
+        --target-dir) TARGET_DIR="$2"; shift ;;
+        --target-file) TARGET_FILE="$2"; shift ;;
+        --target-class) TARGET_CLASS="$2"; shift ;;
+        --target-function) TARGET_FUNCTION="$2"; shift ;;
+        *) echo "Unknown parameter: $1"; exit 1 ;;
+    esac
+    shift
+done
 
-[build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+WORKDIR="${GITHUB_WORKSPACE:-$PWD}"
+ABS_PROJECT_ROOT="$WORKDIR/$PROJECT_ROOT"
+REPORT_DIR="$ABS_PROJECT_ROOT/test_analysis_report"
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["src*"]
+echo "::group::Environment"
+echo "Workdir:      $WORKDIR"
+echo "Project root: $ABS_PROJECT_ROOT"
+echo "Tests dir:    $TESTS_DIR"
+echo "Model:        $MODEL"
+echo "::endgroup::"
 
-[tool.setuptools.package-data]
-"src" = ["prompts/*.j2", "prompts/**/*.j2"]
+# --- .env для pydantic-settings ---
+ENV_FILE="$ABS_PROJECT_ROOT/config/.env"
+mkdir -p "$(dirname "$ENV_FILE")"
+{
+    echo "ai_api_key=$AI_API_KEY"
+    [ -n "$AI_BASE_URL" ] && echo "ai_base_url=$AI_BASE_URL"
+} > "$ENV_FILE"
+
+# --- выбор конфига ---
+if [ -n "$CONFIG_PATH" ] && [ -f "$ABS_PROJECT_ROOT/$CONFIG_PATH" ]; then
+    FINAL_CONFIG="$ABS_PROJECT_ROOT/$CONFIG_PATH"
+else
+    # фолбэк: пытаемся найти дефолтный конфиг в установленном пакете
+    FINAL_CONFIG=$(python -c "import src, os; print(os.path.join(os.path.dirname(src.__file__), '..', 'config', 'config.yaml'))" 2>/dev/null || echo "")
+    if [ ! -f "$FINAL_CONFIG" ]; then
+        echo "⚠️  Config not found, generator will use defaults"
+        FINAL_CONFIG=""
+    fi
+fi
+
+# --- сборка аргументов ---
+CLI_ARGS=(
+    --project "$ABS_PROJECT_ROOT"
+    --tests-dir "$TESTS_DIR"
+    --max-generate-retries "$MAX_GEN_RETRIES"
+    --max-fix-attempts "$MAX_FIX_ATTEMPTS"
+    --target_line_coverage "$TARGET_COV"
+    --max_async_workers "$MAX_WORKERS"
+)
+
+[ -n "$FINAL_CONFIG" ]    && CLI_ARGS+=(--config "$FINAL_CONFIG")
+[ -n "$MODEL" ]           && CLI_ARGS+=(--model "$MODEL")
+[ -n "$TEMPERATURE" ]     && CLI_ARGS+=(--temperature "$TEMPERATURE")
+[ -n "$TARGET_DIR" ]      && CLI_ARGS+=(--target-dir "$TARGET_DIR")
+[ -n "$TARGET_FILE" ]     && CLI_ARGS+=(--target-file "$TARGET_FILE")
+[ -n "$TARGET_CLASS" ]    && CLI_ARGS+=(--target-class "$TARGET_CLASS")
+[ -n "$TARGET_FUNCTION" ] && CLI_ARGS+=(--target-function "$TARGET_FUNCTION")
+
+echo "::group::Generator run"
+cd "$ABS_PROJECT_ROOT"
+generator-tests "${CLI_ARGS[@]}" || {
+    echo "::error::Generator failed"
+    exit 1
+}
+echo "::endgroup::"
+
+# --- output для Action ---
+if [ -f "$REPORT_DIR/index.html" ]; then
+    echo "report_path=$REPORT_DIR/index.html" >> "$GITHUB_OUTPUT"
+fi
