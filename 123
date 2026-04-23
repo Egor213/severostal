@@ -1,0 +1,35 @@
+[project]
+name = "generator-tests"
+version = "0.1.0"
+description = "LLM-powered pytest generator with coverage & mutation analysis"
+requires-python = ">=3.10"
+authors = [{name = "Your Name", email = "[Email5]"}]
+dependencies = [
+    "aiohttp>=3.9",
+    "openai>=1.0",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "jinja2>=3.1",
+    "tiktoken>=0.5",
+    "coverage>=7.0",
+    "pytest>=7.4",
+    "pytest-asyncio>=0.21",
+    "pytest-cov>=4.1",
+    "black>=23.0",
+    "PyYAML>=6.0",
+    "python-dotenv>=1.0",
+]
+
+[project.scripts]
+generator-tests = "src.app.app:main_sync"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.setuptools.package-data]
+"src" = ["prompts/*.j2", "prompts/**/*.j2"]
